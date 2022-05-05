@@ -1,12 +1,25 @@
 <script setup lang="ts">
-import { user, register, login } from './auth.ts'
+  import { User, register, challenge } from './auth'
+</script>
+<script lang="ts">
+  export default {
+    data() {
+      return {
+        name: "",
+        contact: ""
+      }
+    }
+  }
 </script>
 
 <template>
   <div id="auth">
     <img />
-    <h1>{{user.name}}</h1>
-    <button @click="register()">Register</button>
+    <h1>{{User.get()}}</h1>
+    <input v-model="name" placeholder="Name" />
+    <input v-model="contact" placeholder="Contact" />
+    <button @click="register(name, contact)">Register</button>
+    <button @click="challenge()">Sign</button>
   </div>
 </template>
 

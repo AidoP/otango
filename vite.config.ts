@@ -10,5 +10,9 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
-  }
+  },
+  server: {
+    https: true
+  },
+  base: process.env.NODE_ENV === "production" ? "/otango/" : "/"
 })
