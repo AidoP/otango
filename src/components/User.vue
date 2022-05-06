@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { User, register, challenge } from './auth'
+  import { User, register, challenge } from './auth.ts'
 </script>
 <script lang="ts">
   export default {
