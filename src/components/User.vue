@@ -1,7 +1,7 @@
 <script setup lang="ts">
+  import { User, register, challenge } from './auth'
 </script>
 <script lang="ts">
-  import { User, register, challenge } from './auth'
   export default {
     data() {
       return {

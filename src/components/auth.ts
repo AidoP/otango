@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import 'axios'
 import axios from 'axios'
-import { backend } from '@/main';
+import { backend } from '../main';
 
 class Database {
     static db = ref();
