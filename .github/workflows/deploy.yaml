@@ -21,13 +21,14 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+        #cache: 'npm'
     - run: npm ci
     - run: npm run build
     - name: Deploy to Pages
       run: |
+        cd dist
         git config user.name 'Automated Deployment'
         git config user.email 'aidan@trifuse.xyz'
-        git add .
+        git add -f .
         git commit -m 'Deploy to Pages'
         git push
