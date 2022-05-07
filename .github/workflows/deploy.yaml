@@ -29,6 +29,6 @@ jobs:
         cd dist
         git config user.name 'Automated Deployment'
         git config user.email 'aidan@trifuse.xyz'
-        git add -f .
+        git add .
         git commit -m 'Deploy to Pages'
         git push
