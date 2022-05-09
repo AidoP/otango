@@ -16,7 +16,8 @@ jobs:
         ref: dist
         path: dist
     - name: Clear old deploy
-      run: rm -rf dist/*
+      run: |
+        rm -r dist/assets/
     - name: Use Node.js 16.15.0
       uses: actions/setup-node@v3
       with:
