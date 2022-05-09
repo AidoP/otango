@@ -72,3 +72,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+.floating {
+  border-radius: 0.5em; 
+  padding: 1em;
+  background-color: var(--vt-c-divider-light-1);
+  box-shadow: 0 0 0.2em black;
+  display: inline-block;
+  position: fixed;
+}

@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
+import { user_store } from './composables/auth'
 import User from '@/components/User.vue'
+
+const user = user_store();
+user.load();
 </script>
 
 <template>

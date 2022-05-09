@@ -1,52 +1,18 @@
-import { ref } from 'vue'
-import 'axios'
 import axios from 'axios'
+import { Ref, ref } from 'vue'
 import { backend } from '../main';
-
-class Database {
-    static db = ref();
-    static async get(): Promise<IDBDatabase> {
-        if (this.db.value == null)
-            return this.db.value = await open_database();
-        else return this.db.value;
-    }
-}
-async function open_database(): Promise<IDBDatabase> {
-    const promise = new Promise<IDBDatabase>((resolve, reject) => {
-        const open_req = window.indexedDB.open("auth", 1);
-        open_req.onerror = event => reject(event.target);
-        open_req.onupgradeneeded = event => {
-            const request = event.target as IDBOpenDBRequest;
-            const db = request.result;
-            db.createObjectStore("user", { autoIncrement: true });
-        };
-        open_req.onsuccess = event => {
-            const request = event.target as IDBOpenDBRequest;
-            const db = request.result;
-            resolve(db);
-        };
-    });
-    return await promise;
-}
+import { defineStore } from 'pinia'
 
 export class User {
-    static current = ref();
-    static get() {
-        return (this.current.value as User | null);
-    }
-    static set(user: User | null) {
-        this.current.value = user
-    }
-
     name: string;
     contact: string | null;
     private_key: CryptoKey;
     public_key: CryptoKey;
-    constructor(name: string, contact: string | null, key: CryptoKeyPair) {
+    constructor(name: string, contact: string | null, private_key: CryptoKey, public_key: CryptoKey) {
         this.name = name;
         this.contact = contact;
-        this.private_key = key.privateKey;
-        this.public_key = key.publicKey;
+        this.private_key = private_key;
+        this.public_key = public_key;
     }
     /*static async from_storage(): Promise<User | null> {
         const stored = localStorage.getItem("user");
@@ -55,8 +21,19 @@ export class User {
         const privateKey = crypto.subtle.importKey("pkcs8", user.private_key);
         return new User(user.user, {privateKey, publicKey});
     }*/
-    async store() {
-        (await Database.get()).transaction("user", "readwrite").objectStore("user").add(this);
+    static async get(db: IDBDatabase, name: string): Promise<User> {
+        const promise = new Promise<User>((resolve, reject) => {
+            const request = db.transaction("user", "readwrite").objectStore("user").get(name);
+            request.onerror = reject;
+            request.onsuccess = e => {
+                const data = (e.target as any).result;
+                resolve(new User(data.name, data.user, data.private_key, data.public_key))
+            } 
+        });
+        return await promise;
+    }
+    async store(db: IDBDatabase) {
+        db.transaction("user", "readwrite").objectStore("user").add(this);
     }
     static async generate(name: string, contact: string | null): Promise<User> {
         const algorithm = {
@@ -64,7 +41,7 @@ export class User {
             namedCurve: "P-256"
         };
         const key = await crypto.subtle.generateKey(algorithm, true, ["sign", "verify"]);
-        return new User(name, contact, key);
+        return new User(name, contact, key.privateKey, key.publicKey);
     }
     async public_key_pem(): Promise<string> {
         const raw = await crypto.subtle.exportKey("spki", this.public_key);
@@ -79,12 +56,78 @@ export class User {
      * @param data The request to sign
      * @returns A signed request
      */ 
-    async sign<T>(data: T): Promise<Signed<By<T>>> {
+    async sign(data: any): Promise<Signed<By<any>>> {
         const challenge_request = await Signed.sign(this.private_key, this.name);
         const challenge = (await axios.post(backend.join("/auth/challenge"), challenge_request)).data;
         return await Signed.sign(this.private_key, new By(this.name, challenge.toString(), data));
     }
 }
+export const user_store = defineStore("user", () => {
+    const user: Ref<User | null> = ref(null)
+    const database = ref()
+    
+    async function open_database() {
+        const promise = new Promise<IDBDatabase>((resolve, reject) => {
+            const open_req = window.indexedDB.open("auth", 1);
+            open_req.onerror = event => reject(event.target);
+            open_req.onupgradeneeded = event => {
+                const request = event.target as IDBOpenDBRequest;
+                const db = request.result;
+                db.createObjectStore("user", { keyPath: "name", autoIncrement: true });
+            };
+            open_req.onsuccess = event => {
+                const request = event.target as IDBOpenDBRequest;
+                const db = request.result;
+                resolve(db);
+            };
+        });
+        database.value = await promise;
+    }
+    /// Get the user specified in local storage
+    async function load() {
+        if (database.value == null)
+            await open_database();
+        let user_name = localStorage.getItem("user");
+        if (user_name == null) {
+            return { user_name: null };
+        }
+        user.value = await User.get(database.value, user_name);
+    }
+    async function logout() {
+        localStorage.removeItem("user");
+        user.value = null;
+    }
+    async function register(name: string, contact: string | null) {
+        const new_user = await User.generate(name, contact);
+    
+        const cert = await Signed.sign(new_user.private_key, await new_user.certificate());
+        const response = await axios.post(backend.join("/auth/register"), cert);
+        if (response.status != 201)
+            return Promise.reject(await response.data());
+        
+        await new_user.store(database.value);
+        localStorage.setItem("user", new_user.name);
+        user.value = new_user;
+    }
+    async function sign(data: any): Promise<Signed<By<any>>> {
+        console.log(user);
+        if (user.value == null)
+            return Promise.reject("Not logged in as a user");
+        return user.value.sign(data)
+    }
+    /// Return a list of saved users
+    async function saved(): Promise<User[]> {
+        const promise = new Promise<User[]>((resolve, reject) => {
+            const request: IDBRequest = database.value.transaction("user", "readonly").objectStore("user").getAll();
+            request.onsuccess = (e => resolve((e.target as any).result));
+        })
+        return await promise;
+    }
+    async function from(serialised: string) {
+        
+    }
+    return { user, from, load, logout, register, sign, saved }
+});
 
 export class Signed<T> {
     data: T;
@@ -151,21 +194,4 @@ export class Certificate {
         this.pubkey = pubkey;
         this.created = new Date().toISOString();
     }
-}
-export async function register(name: string, contact: string | null) {
-    const new_user = await User.generate(name, contact);
-    User.set(new_user);
-
-    const cert = await Signed.sign(new_user.private_key, await new_user.certificate());
-    axios.post(backend.join('/auth/register'), cert)
-        .then(r => console.log(r.data));
-
-    (await Database.get()).transaction("user", "readonly").objectStore("user").getAll().onsuccess = console.log;
-}
-export async function challenge() {
-    console.log(await User.get()?.sign("apples"))
-}
-
-export function signedRequest() {
-
 }

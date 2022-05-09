@@ -1,3 +1,4 @@
+import { createPinia } from 'pinia';
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
@@ -16,9 +17,11 @@ export class URI {
         return new URL(url, this.base).toString();
     }
 }
+export const backend = new URI(import.meta.env.VITE_BACKEND)
 
-export const backend = new URI(import.meta.env.VITE_BACKEND);
+const pinia = createPinia()
 
 app.use(router)
+app.use(pinia)
 
 app.mount('#app')
