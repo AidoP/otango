@@ -28,6 +28,7 @@ jobs:
     - name: Deploy to Pages
       run: |
         cd dist
+        cp index.html 404.html
         git config user.name 'Automated Deployment'
         git config user.email 'aidan@trifuse.xyz'
         git add .
